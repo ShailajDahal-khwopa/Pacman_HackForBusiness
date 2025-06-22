@@ -1,17 +1,29 @@
 from django.shortcuts import render
-from django.http import HttpResponse
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from .models import BusinessUsers, Stock, CutomerUser, Credit
 import json
 import uuid as uuid_lib
 
+def options_response():
+    response = HttpResponse()
+    response["Access-Control-Allow-Origin"] = "*"
+    response["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+    response["Access-Control-Allow-Headers"] = "Content-Type"
+    response["Allow"] = "POST, OPTIONS"
+    return response
 
 @csrf_exempt
 def edit(request):
+    if request.method == "OPTIONS":
+        # Handle preflight request for CORS
+        response = options_response()
+        response["Allow"] = "POST, OPTIONS"
+        return response
+        return options_response()
     if request.method == 'POST':
         try:
-            data = json.loads(request.body.decode('utf-8'))
+            data = json.loads(request.body)
             uuid = data.get('uuid')
             lat = data.get('lat', None)
             long = data.get('long', None)
@@ -21,9 +33,7 @@ def edit(request):
         except (json.JSONDecodeError, UnicodeDecodeError):
             return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
 
-        # Get or create the business user
         business_user, created = BusinessUsers.objects.get_or_create(uuid=uuid)
-        # Only update lat/long if provided
         updated = False
         if lat is not None:
             business_user.lat = lat
@@ -34,14 +44,12 @@ def edit(request):
         if updated:
             business_user.save()
 
-        # Update or create the stock item
         stock, created = Stock.objects.update_or_create(
-            uuid=uuid,
+            business_user=business_user,
+            product_name=product_name,
             defaults={
-                'product_name': product_name,
                 'price': price,
                 'quantity': quantity,
-                'business_user': business_user
             }
         )
 
@@ -49,12 +57,17 @@ def edit(request):
     
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'})
 
-#this is a function to view the table of stocks where /view port will listen for the uuid and send get the respective data from the database
 @csrf_exempt
 def view(request):
+    if request.method == "OPTIONS":
+        # Handle preflight request for CORS
+        response = options_response()
+        response["Allow"] = "POST, OPTIONS"
+        return response
+        return options_response()
     if request.method == 'POST':
         try:
-            data = json.loads(request.body.decode('utf-8'))
+            data = json.loads(request.body)
             uuid = data.get('uuid')
         except (json.JSONDecodeError, UnicodeDecodeError):
             return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
@@ -64,7 +77,6 @@ def view(request):
             stocks = Stock.objects.filter(business_user=business_user)
             stock_data = [
                 {
-                    'uuid': stock.uuid,
                     'product_name': stock.product_name,
                     'price': stock.price,
                     'quantity': stock.quantity
@@ -74,15 +86,13 @@ def view(request):
         except BusinessUsers.DoesNotExist:
             return JsonResponse({'status': 'error', 'message': 'Business user not found'}, status=404)
 
-# simple authentication that stores a new business user in the database if email and passowrd match
-# if the authentication is correct it sends a uuid
-#sends uuid of the new account as well
-
 @csrf_exempt
 def signin(request):
+    if request.method == "OPTIONS":
+        return options_response()
     if request.method == 'POST':
         try:
-            data = json.loads(request.body.decode('utf-8'))
+            data = json.loads(request.body)
             email = data.get('email')
             password = data.get('password')
         except (json.JSONDecodeError, UnicodeDecodeError):
@@ -96,12 +106,13 @@ def signin(request):
 
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
 
-
 @csrf_exempt
 def signup(request):
+    if request.method == "OPTIONS":
+        return options_response()
     if request.method == 'POST':
         try:
-            data = json.loads(request.body.decode('utf-8'))
+            data = json.loads(request.body8)
             email = data.get('email')
             password = data.get('password')
             name = data.get('name')
@@ -129,12 +140,13 @@ def signup(request):
 
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
 
-# This code defines customer user signup and signin functions.
 @csrf_exempt
 def customer_signup(request):
+    if request.method == "OPTIONS":
+        return options_response()
     if request.method == 'POST':
         try:
-            data = json.loads(request.body.decode('utf-8'))
+            data = json.loads(request.body)
             email = data.get('email')
             password = data.get('password')
         except (json.JSONDecodeError, UnicodeDecodeError):
@@ -158,9 +170,11 @@ def customer_signup(request):
 
 @csrf_exempt
 def customer_signin(request):
+    if request.method == "OPTIONS":
+        return options_response()
     if request.method == 'POST':
         try:
-            data = json.loads(request.body.decode('utf-8'))
+            data = json.loads(request.body)
             email = data.get('email')
             password = data.get('password')
         except (json.JSONDecodeError, UnicodeDecodeError):
@@ -175,10 +189,38 @@ def customer_signin(request):
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
 
 @csrf_exempt
-def credit(request):
+def credit_business(request):
+    if request.method == "OPTIONS":
+        return options_response()
     if request.method == 'POST':
         try:
-            data = json.loads(request.body.decode('utf-8'))
+            data = json.loads(request.body)
+            business_uuid = data.get('business_uuid')
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
+
+        try:
+            business_user = BusinessUsers.objects.get(uuid=business_uuid)
+        except BusinessUsers.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Business user not found'}, status=404)
+
+        credits = Credit.objects.filter(business_user=business_user)
+        credit_data = [
+            {
+                'customer_uuid': credit.customer_user.uuid,
+                'amount': credit.amount,
+                'due_date': credit.due_date.isoformat()
+            } for credit in credits
+        ]
+        return JsonResponse({'status': 'success', 'credits': credit_data})
+
+@csrf_exempt
+def credit(request):
+    if request.method == "OPTIONS":
+        return options_response()
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
             customer_uuid = data.get('customer_uuid')
             business_uuid = data.get('business_uuid')
             amount = data.get('amount')
@@ -200,13 +242,13 @@ def credit(request):
 
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
 
-
-# search for businesses providing an item within certain raduus of provided lat long and return business name 
 @csrf_exempt
 def search_businesses(request):
+    if request.method == "OPTIONS":
+        return options_response()
     if request.method == 'POST':
         try:
-            data = json.loads(request.body.decode('utf-8'))
+            data = json.loads(request.body)
             product_name = data.get('product_name')
             lat = data.get('lat')
             long = data.get('long')

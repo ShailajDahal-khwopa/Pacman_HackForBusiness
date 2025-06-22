@@ -2,7 +2,7 @@ from django.db import models
 
 class BusinessUsers(models.Model):
     uuid=models.CharField(max_length=100, primary_key=True)
-    name=models.CharField(max_length=100)
+    name=models.CharField(max_length=100,default='John Doe')
     email=models.EmailField(max_length=100, unique=True)
     password=models.CharField(max_length=100)
     lat=models.FloatField()

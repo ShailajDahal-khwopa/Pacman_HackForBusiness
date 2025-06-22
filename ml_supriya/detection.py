@@ -13,6 +13,7 @@ model = YOLO('best.pt')
 
 @app.route('/detect', methods=['POST'])
 def detect_objects():
+
     # Get image file
     file = request.files['image']
     
@@ -34,8 +35,9 @@ def detect_objects():
     
     # Count classes
     class_counts = Counter(detected_classes)
-    
+    print(class_counts)
+
     return jsonify(dict(class_counts))
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=4000)
