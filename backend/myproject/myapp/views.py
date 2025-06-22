@@ -4,7 +4,6 @@ from django.views.decorators.csrf import csrf_exempt
 from .models import BusinessUsers, Stock, CutomerUser, Credit
 import json
 import uuid as uuid_lib
-
 def options_response():
     response = HttpResponse()
     response["Access-Control-Allow-Origin"] = "*"
