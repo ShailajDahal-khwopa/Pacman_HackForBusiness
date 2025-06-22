@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from .models import BusinessUsers, Stock, CutomerUser, Credit
+from .models import BusinessUsers, Stock, CutomerUser, Credit, Notification
 import json
 import uuid as uuid_lib
 def options_response():
@@ -242,8 +242,12 @@ def credit(request):  # Creates a new credit entry for a customer user.
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
 
 @csrf_exempt
-def search_businesses(request):
+def search_businesses(request): # Searches for businesses based on product name and location.
     if request.method == "OPTIONS":
+        # Handle preflight request for CORS
+        response = options_response()
+        response["Allow"] = "POST, OPTIONS"
+        return response 
         return options_response()
     if request.method == 'POST':
         try:
@@ -310,3 +314,69 @@ def credit_edit(request):  # Edits an existing credit entry.
             return JsonResponse({'status': 'error', 'message': 'No fields to update'}, status=400)
 
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
+
+
+@csrf_exempt
+def notification(request):  # Sends a notification to all the business users inside the raius requesting for the item and then saves it in the database with the particular business user.
+    if request.method == "OPTIONS":
+        response = options_response()
+        response["Allow"] = "POST, OPTIONS"
+        return response
+
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            message = data.get('message')
+            lat = data.get('lat')
+            long = data.get('long')
+            radius = data.get('radius', 5)  # Default radius is 5 km
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
+
+
+        businesses_in_radius = BusinessUsers.objects.filter(
+            lat__range=(lat - radius, lat + radius),
+            long__range=(long - radius, long + radius)
+        )
+
+        if not businesses_in_radius.exists():
+            return JsonResponse({'status': 'error', 'message': 'No businesses found in the specified radius'}, status=404)
+
+        for business in businesses_in_radius:
+            Notification.objects.create(
+                business_user=business,
+                message=message
+            )
+
+        return JsonResponse({'status': 'success', 'message': 'Notification sent to all businesses in the radius'})
+
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
+
+
+
+@csrf_exempt
+def view_notifications(request):  # View all notifications for a business user.
+    if request.method == "OPTIONS":
+        response = options_response()
+        response["Allow"] = "POST, OPTIONS"
+        return response
+
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            business_uuid = data.get('business_uuid')
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
+
+        try:
+            business_user = BusinessUsers.objects.get(uuid=business_uuid)
+        except BusinessUsers.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Business user not found'}, status=404)
+
+        notifications = Notification.objects.filter(business_user=business_user)
+        notification_data = [{'notification_id': n.notification_id, 'message': n.message} for n in notifications]
+
+        return JsonResponse({'status': 'success', 'notifications': notification_data})
+
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
+

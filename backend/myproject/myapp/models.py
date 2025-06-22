@@ -27,3 +27,10 @@ class Credit(models.Model):
     amount = models.FloatField()
     due_date = models.DateTimeField(auto_now_add=True)
     paid_status = models.BooleanField(default=False)
+
+
+class Notification(models.Model):
+    notification_id = models.AutoField(primary_key=True)  # Unique identifier for each notification
+    business_user = models.ForeignKey(BusinessUsers, on_delete=models.CASCADE, related_name='notifications')
+    message = models.TextField()  # Content of the notification
+
