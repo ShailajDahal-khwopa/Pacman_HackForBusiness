@@ -1,121 +1,71 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from ultralytics import YOLO
+from PIL import Image
 import google.generativeai as genai
 import json
+import io
 
+# -------------------- Setup --------------------
 app = Flask(__name__)
 CORS(app)
 
-# 🔐 Configure Gemini API
-genai.configure(api_key="AIzaSyCYsGOuuizEZ2y4nJ-d5K5hiLuJ39fmUYg")  # Replace with your key
+# Load YOLOv8 model
+yolo_model = YOLO("best.pt")  # ⚠️ Ensure this model is in your project folder
 
-# 💰 Nepal price list for the labeled products (in NPR)
+# Gemini API key (⚠️ Replace with your own)
+genai.configure(api_key="AIzaSyCYsGOuuizEZ2y4nJ-d5K5hiLuJ39fmUYg")
+
+# Price list in Nepalese Rupees
 nepal_price_list = {
-    "red_pringles": 275,
-    "purple_pringles": 275,
-    "green_pringles": 275,
-    "yellow_pringles": 275,
-    "red_lays": 50,
-    "blue_lays": 50,
-    "green_lays": 50,
-    "oreo": 25,
-    "parle-g": 200,
-    "chocos": 390,
-    "coffee": 160, #380
-    "bread": 50,
-    "fanta": 250,
-    "coke": 250,
-    "sprite": 250,
-    "glucose": 190, #200
-    "redbull": 100, #110
-    "frooti": 25,
-    "aloevera": 60,
-    "appy": 20,
-    "top": 60,
-    "chocopie": 140,
-    "2pm": 220,
-    "mariegold": 100, #80
-    "monaco": 50, #10,100
-    "honey": 420, #775
-    "realjuice": 45,
-    "horlicks": 430,
-    "prawn": 35
+    "red_pringles": 275, "purple_pringles": 275, "green_pringles": 275, "yellow_pringles": 275,
+    "red_lays": 50, "blue_lays": 50, "green_lays": 50, "oreo": 25, "parle-g": 200,
+    "chocos": 390, "coffee": 160, "bread": 50, "fanta": 250, "coke": 250,
+    "sprite": 250, "glucose": 190, "redbull": 100, "frooti": 25, "aloevera": 60,
+    "appy": 20, "top": 60, "chocopie": 140, "2pm": 220, "mariegold": 100,
+    "monaco": 50, "honey": 420, "realjuice": 45, "horlicks": 430, "prawn": 35
 }
 
-def generate_invoice_with_gemini(cart, price_list):
-    """Generate invoice using Gemini 2.0"""
+# -------------------- Helper: Generate Invoice --------------------
+def generate_invoice_with_gemini(cart):
     try:
-        model = genai.GenerativeModel('gemini-2.0-flash-exp')
-        
+        model = genai.GenerativeModel("gemini-2.0-flash-exp")
         prompt = f"""
 You are an invoice generator for a grocery store in Nepal.
-Here is the shopping cart:
+Cart:
 {json.dumps(cart, indent=2)}
-
-Here is the price list (in Rs - Rupees):
-{json.dumps(price_list, indent=2)}
-
-Generate a JSON invoice with these exact fields:
-- "items": list of item dictionaries with "name", "quantity", "unit_price", "total_price"
-- "subtotal": sum of all item total_prices
-- "total": same as subtotal (no tax)
-- "currency": "Rs"
-
+Price list:
+{json.dumps(nepal_price_list, indent=2)}
 Rules:
-1. Only include items that exist in both cart and price list
-2. Calculate total_price = quantity × unit_price
-3. Only return valid JSON, no explanation or markdown formatting
-
-Example format:
+- Only use items present in both cart and price list
+- Calculate total_price = quantity * unit_price
+- Return valid JSON only, format:
 {{
-  "items": [
-    {{
-      "name": "oreo",
-      "quantity": 2,
-      "unit_price": 30,
-      "total_price": 60
-    }}
-  ],
-  "subtotal": 60,
-  "total": 60,
+  "items": [{{"name": "oreo", "quantity": 2, "unit_price": 25, "total_price": 50}}],
+  "subtotal": 50,
+  "total": 50,
   "currency": "Rs"
 }}
 """
-        
         response = model.generate_content(prompt)
-        
-        # Clean response (remove markdown if present)
-        response_text = response.text.strip()
-        if response_text.startswith('```json'):
-            response_text = response_text[7:]
-        if response_text.endswith('```'):
-            response_text = response_text[:-3]
-        response_text = response_text.strip()
-        
-        return json.loads(response_text)
-        
-    except Exception as e:
-        # Fallback: generate invoice manually if Gemini fails
-        return generate_invoice_manually(cart, price_list)
+        clean = response.text.strip().removeprefix("```json").removesuffix("```").strip()
+        return json.loads(clean)
+    except:
+        return generate_invoice_manually(cart)
 
-def generate_invoice_manually(cart, price_list):
-    """Fallback manual invoice generation"""
-    items = []
-    subtotal = 0
-    
-    for product, quantity in cart.items():
-        if product in price_list:
-            unit_price = price_list[product]
-            total_price = quantity * unit_price
-            subtotal += total_price
-            
+def generate_invoice_manually(cart):
+    items, subtotal = [], 0
+    for item, qty in cart.items():
+        if item in nepal_price_list:
+            price = nepal_price_list[item]
+            total = qty * price
+            subtotal += total
             items.append({
-                "name": product,
-                "quantity": quantity,
-                "unit_price": unit_price,
-                "total_price": total_price
+                "name": item,
+                "quantity": qty,
+                "unit_price": price,
+                "total_price": total
             })
-    
     return {
         "items": items,
         "subtotal": subtotal,
@@ -123,74 +73,50 @@ def generate_invoice_manually(cart, price_list):
         "currency": "Rs"
     }
 
+# -------------------- Main Endpoint --------------------
+@app.route('/detect', methods=['POST'])
+def upload_image():
+    if 'image' not in request.files:
+        return jsonify({"error": "No image uploaded"}), 400
 
-@app.route('/generate-invoice', methods=['POST'])
-def generate_invoice():
-    """
-    Generate invoice from cart
-    Expected JSON input: {"cart": {"product_name": quantity, ...}}
-    """
     try:
-        # Get JSON data from request
-        data = request.get_json()
-        
-        if not data or 'cart' not in data:
-            return jsonify({
-                "error": "Missing 'cart' in request body",
-                "expected_format": {
-                    "cart": {
-                        "oreo": 2,
-                        "coke": 1
-                    }
-                }
-            }), 400
-        
-        cart = data['cart']
-        
-        # Validate cart format
-        if not isinstance(cart, dict) or not cart:
-            return jsonify({
-                "error": "Cart must be a non-empty dictionary",
-                "example": {"oreo": 2, "coke": 1}
-            }), 400
-        
-        # Check for invalid products
-        invalid_products = [product for product in cart.keys() if product not in nepal_price_list]
-        if invalid_products:
-            return jsonify({
-                "error": f"Unknown products: {invalid_products}",
-                "available_products": list(nepal_price_list.keys())
-            }), 400
-        
-        # Generate invoice using Gemini
-        invoice = generate_invoice_with_gemini(cart, nepal_price_list)
-        
+        # Load and predict
+        image = Image.open(request.files['image'].stream).convert("RGB")
+        results = yolo_model.predict(image, conf=0.25)
+
+        # Count detections
+        cart = {}
+        for result in results:
+            for box in result.boxes:
+                label = yolo_model.names[int(box.cls)]
+                cart[label] = cart.get(label, 0) + 1
+
+        if not cart:
+            return jsonify({"message": "No known items detected."}), 200
+
+        # Generate invoice
+        invoice = generate_invoice_with_gemini(cart)
         return jsonify(invoice)
-        
-    except json.JSONDecodeError:
-        return jsonify({
-            "error": "Invalid JSON format"
-        }), 400
+
     except Exception as e:
-        return jsonify({
-            "error": f"Server error: {str(e)}"
-        }), 500
+        return jsonify({"error": f"Something went wrong: {str(e)}"}), 500
 
-@app.errorhandler(405)
-def method_not_allowed(e):
-    return jsonify({
-        "error": "Method not allowed",
-        "allowed_methods": ["GET", "POST"]
-    }), 405
-
+# -------------------- Error Handlers --------------------
 @app.errorhandler(404)
 def not_found(e):
     return jsonify({
         "error": "Endpoint not found",
-        "available_endpoints": ["/", "/products", "/generate-invoice"]
+        "available": ["/upload-image"]
     }), 404
 
+@app.errorhandler(405)
+def not_allowed(e):
+    return jsonify({
+        "error": "Method not allowed",
+        "allowed_methods": ["POST"]
+    }), 405
+
+# -------------------- Start Server --------------------
 if __name__ == '__main__':
-    print("Starting Nepal Grocery Invoice API...")
-    print("Available products:", len(nepal_price_list))
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    print("🛒 Starting YOLO+Gemini Invoice API...")
+    app.run(host='0.0.0.0', port=5000, debug=True)
