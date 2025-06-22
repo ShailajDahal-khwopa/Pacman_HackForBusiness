@@ -315,6 +315,35 @@ def credit_edit(request):  # Edits an existing credit entry.
 
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
 
+@csrf_exempt
+def credit_customer(request):  # Returns all credits for a customer user.
+    if request.method == "OPTIONS":
+        return options_response()
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            customer_uuid = data.get('customer_uuid')
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
+
+        try:
+            customer_user = CutomerUser.objects.get(uuid=customer_uuid)
+        except CutomerUser.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Customer user not found'}, status=404)
+
+        credits = Credit.objects.filter(customer_user=customer_user)
+        credit_data = [
+            {
+                'business_uuid': credit.business_user.uuid,
+                'amount': credit.amount,
+                'due_date': credit.due_date.isoformat(),
+                'paid_status': credit.paid_status
+            } for credit in credits
+        ]
+        return JsonResponse({'status': 'success', 'credits': credit_data})
+    
+
+
 
 @csrf_exempt
 def notification(request):  # Sends a notification to all the business users inside the raius requesting for the item and then saves it in the database with the particular business user.

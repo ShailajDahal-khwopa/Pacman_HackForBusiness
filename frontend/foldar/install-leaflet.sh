@@ -1,2 +1,0 @@
-npm install leaflet
-npm install @types/leaflet
