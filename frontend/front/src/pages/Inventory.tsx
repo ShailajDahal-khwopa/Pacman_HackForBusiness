@@ -4,8 +4,9 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Edit2, Save, X, Package, Plus } from 'lucide-react';
+import { Edit2, Save, X, Package, Plus, ReceiptText } from 'lucide-react';
 import { Dialog } from "@/components/ui/dialog";
+import jsPDF from "jspdf";
 
 interface Product {
   uuid: string;
@@ -28,7 +29,10 @@ const Inventory = () => {
   const [detectedItems, setDetectedItems] = useState<{ [key: string]: number }>({});
   const [showUpload, setShowUpload] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [showInvoiceUpload, setShowInvoiceUpload] = useState(false);
+  const [invoiceUploading, setInvoiceUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const invoiceInputRef = useRef<HTMLInputElement | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -201,10 +205,122 @@ const Inventory = () => {
     }
   };
 
+  // NEW: Handle invoice image upload and remove items from inventory
+  const handleInvoiceImage = async (file: File) => {
+    setInvoiceUploading(true);
+    const formData = new FormData();
+    formData.append("image", file);
+
+    try {
+      // 1. Send image to invoice API (returns invoice JSON)
+      const response = await fetch("http://localhost:5000/detect", {
+        method: "POST",
+        body: formData,
+      });
+
+      const invoice = await response.json();
+
+      if (!invoice.items || !Array.isArray(invoice.items)) {
+        toast({
+          title: "Error",
+          description: "Could not parse invoice items.",
+          variant: "destructive",
+        });
+        setInvoiceUploading(false);
+        setShowInvoiceUpload(false);
+        return;
+      }
+
+      // 2. Remove items from inventory by updating backend
+      const uuid = localStorage.getItem('businessUuid');
+      await Promise.all(
+        invoice.items.map(async (item: any) => {
+          const product = products.find(
+            (p) => p.product_name.toLowerCase() === item.name.toLowerCase()
+          );
+          if (product) {
+            const newQty = Math.max(0, product.quantity - item.quantity);
+            await fetch('http://localhost:8000/edit/', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                uuid,
+                product_name: product.product_name,
+                price: product.price,
+                quantity: newQty,
+              }),
+            });
+          }
+        })
+      );
+
+      await fetchInventory();
+      toast({
+        title: "Invoice Processed",
+        description: "Inventory updated based on invoice.",
+      });
+
+      // 3. Generate and download PDF in browser
+      generateInvoicePDF(invoice);
+
+      toast({
+        title: "Invoice PDF Downloaded",
+        description: "Invoice PDF has been downloaded.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to process invoice image.",
+        variant: "destructive",
+      });
+    } finally {
+      setInvoiceUploading(false);
+      setShowInvoiceUpload(false);
+    }
+  };
+
+  function generateInvoicePDF(invoice: any) {
+    const doc = new jsPDF();
+    let y = 15;
+
+    doc.setFontSize(18);
+    doc.text("Invoice", 14, y);
+    y += 10;
+
+    doc.setFontSize(12);
+    doc.text(`Currency: ${invoice.currency || "Rs"}`, 14, y);
+    y += 10;
+
+    // Table header
+    doc.setFont("helvetica", "bold");
+    doc.text("Item", 14, y);
+    doc.text("Quantity", 80, y);
+    doc.text("Unit Price", 120, y);
+    doc.text("Total", 170, y);
+    y += 8;
+    doc.setFont("helvetica", "normal");
+
+    invoice.items.forEach((item: any) => {
+      doc.text(String(item.name), 14, y);
+      doc.text(String(item.quantity), 80, y);
+      doc.text(String(item.unit_price), 120, y);
+      doc.text(String(item.total_price), 170, y);
+      y += 8;
+    });
+
+    y += 8;
+    doc.setFont("helvetica", "bold");
+    doc.text(`Subtotal: ${invoice.subtotal}`, 14, y);
+    y += 8;
+    doc.text(`Total: ${invoice.total}`, 14, y);
+
+    doc.save("invoice.pdf");
+  }
+
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
+        <div className="flex items-center justify-center h-64">``
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
         </div>
       </DashboardLayout>
@@ -228,6 +344,13 @@ const Inventory = () => {
               Detect from Image
             </Button>
             <Button
+              onClick={() => setShowInvoiceUpload(true)}
+              className="bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white"
+            >
+              <ReceiptText className="mr-2 h-4 w-4" />
+              Upload Invoice Image
+            </Button>
+            <Button
               onClick={() => setIsAdding(true)}
               className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
             >
@@ -236,6 +359,39 @@ const Inventory = () => {
             </Button>
           </div>
         </div>
+
+        {/* Invoice Upload Dialog */}
+        {showInvoiceUpload && (
+          <Dialog open={showInvoiceUpload} onOpenChange={setShowInvoiceUpload}>
+            <div className="p-6">
+              <h2 className="text-lg font-semibold mb-4">Upload Invoice Image</h2>
+              <input
+                type="file"
+                accept="image/*"
+                ref={invoiceInputRef}
+                onChange={e => {
+                  if (e.target.files && e.target.files[0]) {
+                    handleInvoiceImage(e.target.files[0]);
+                  }
+                }}
+                disabled={invoiceUploading}
+              />
+              <div className="mt-4 flex gap-2">
+                <Button
+                  onClick={() => {
+                    if (invoiceInputRef.current) invoiceInputRef.current.value = "";
+                    setShowInvoiceUpload(false);
+                  }}
+                  variant="outline"
+                  disabled={invoiceUploading}
+                >
+                  Cancel
+                </Button>
+              </div>
+              {invoiceUploading && <div className="mt-2 text-blue-600">Processing invoice...</div>}
+            </div>
+          </Dialog>
+        )}
 
         {/* Detected Items Table */}
         {Object.keys(detectedItems).length > 0 && (
@@ -260,39 +416,6 @@ const Inventory = () => {
               </table>
             </div>
           </Card>
-        )}
-
-        {/* Image Upload Dialog */}
-        {showUpload && (
-          <Dialog open={showUpload} onOpenChange={setShowUpload}>
-            <div className="p-6">
-              <h2 className="text-lg font-semibold mb-4">Upload Image for Detection</h2>
-              <input
-                type="file"
-                accept="image/*"
-                ref={fileInputRef}
-                onChange={e => {
-                  if (e.target.files && e.target.files[0]) {
-                    handleDetectImage(e.target.files[0]);
-                  }
-                }}
-                disabled={uploading}
-              />
-              <div className="mt-4 flex gap-2">
-                <Button
-                  onClick={() => {
-                    if (fileInputRef.current) fileInputRef.current.value = "";
-                    setShowUpload(false);
-                  }}
-                  variant="outline"
-                  disabled={uploading}
-                >
-                  Cancel
-                </Button>
-              </div>
-              {uploading && <div className="mt-2 text-blue-600">Detecting...</div>}
-            </div>
-          </Dialog>
         )}
 
         <Card className="border-0 shadow-lg">
