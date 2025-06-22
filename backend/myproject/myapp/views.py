@@ -188,7 +188,7 @@ def customer_signin(request):
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
 
 @csrf_exempt
-def credit_business(request):
+def credit_business(request): # Returns all credits for a business user.
     if request.method == "OPTIONS":
         return options_response()
     if request.method == 'POST':
@@ -214,7 +214,7 @@ def credit_business(request):
         return JsonResponse({'status': 'success', 'credits': credit_data})
 
 @csrf_exempt
-def credit(request):
+def credit(request):  # Creates a new credit entry for a customer user.
     if request.method == "OPTIONS":
         return options_response()
     if request.method == 'POST':
@@ -263,5 +263,50 @@ def search_businesses(request):
 
         business_data = [{'uuid': business.uuid, 'name': business.name} for business in businesses]
         return JsonResponse({'status': 'success', 'businesses': business_data})
+
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
+
+
+@csrf_exempt
+def credit_edit(request):  # Edits an existing credit entry.
+    if request.method == "OPTIONS":
+        response = options_response()
+        response["Allow"] = "POST, OPTIONS"
+        return response
+
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            credit_id = data.get('credit_id')
+            amount = data.get('amount', None)
+            due_date = data.get('due_date', None)
+            paid_status = data.get('paid_status', None)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
+
+        try:
+            credit_entry = Credit.objects.get(id=credit_id)
+        except Credit.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Credit entry not found'}, status=404)
+
+        updated = False
+        if amount is not None:
+            credit_entry.amount = amount
+            updated = True
+        if due_date is not None:
+            from django.utils.dateparse import parse_datetime
+            parsed_due_date = parse_datetime(due_date)
+            if parsed_due_date:
+                credit_entry.due_date = parsed_due_date
+                updated = True
+        if paid_status is not None:
+            credit_entry.paid_status = paid_status
+            updated = True
+
+        if updated:
+            credit_entry.save()
+            return JsonResponse({'status': 'success', 'message': 'Credit entry updated successfully'})
+        else:
+            return JsonResponse({'status': 'error', 'message': 'No fields to update'}, status=400)
 
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)

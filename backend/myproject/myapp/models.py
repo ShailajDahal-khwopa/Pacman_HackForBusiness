@@ -21,7 +21,9 @@ class CutomerUser(models.Model):
     password=models.CharField(max_length=100)
 
 class Credit(models.Model):
+    credit_id = models.AutoField(primary_key=True) # Unique identifier for each credit record whch is auto-incremented
     customer_user = models.ForeignKey(CutomerUser, on_delete=models.CASCADE, related_name='credits')
     business_user = models.ForeignKey(BusinessUsers, on_delete=models.CASCADE, related_name='credits')
     amount = models.FloatField()
     due_date = models.DateTimeField(auto_now_add=True)
+    paid_status = models.BooleanField(default=False)
