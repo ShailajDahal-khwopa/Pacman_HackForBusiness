@@ -22,7 +22,7 @@ def detect_objects():
     image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
     
     # Run detection
-    results = model(image, conf=0.5)
+    results = model(image)
     
     # Extract classes
     detected_classes = []
