@@ -1,6 +1,6 @@
 # 🟢 Pacman_HackForBusiness: Smart B2B/B2C Platform
 
-<img src="logo.png" alt="Pacman_HackForBusiness Logo" align="right" width="120"/>
+<img src="logo.png" alt="Pacman_HackForBusiness Logo" align="right" width="350">
 
 Welcome to **Pacman_HackForBusiness**, a full-stack platform that connects businesses and consumers through smart inventory, credit, competition, and location-based services. This project leverages Django, Flask, Next.js, and advanced ML to create a seamless ecosystem for business management, consumer discovery, and AI-powered automation.
 
