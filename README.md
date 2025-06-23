@@ -14,7 +14,7 @@ Pacman_HackForBusiness is a modular system with the following core components:
 - **Business Dashboard (React):** Modern dashboard for businesses to manage products, credits, competition, and notifications.
 - **Consumer App (Next.js):** Interactive map for consumers to find products and businesses, and send notifications.
 - **ML Services (Flask):** 
-  - Product image matching and competition analysis using deep learning and web scraping.
+  - Product image matching and competition analysis using web scraping and torchvision.
   - Invoice and object detection using YOLOv8 and Google Gemini AI.
 
 Each module is documented in detail in its own README. See links below for full API and usage documentation.
