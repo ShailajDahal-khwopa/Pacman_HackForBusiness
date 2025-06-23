@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,6 +9,7 @@ import Inventory from "./pages/Inventory";
 import Credits from "./pages/Credits";
 import Competition from "./pages/Competition";
 import NotFound from "./pages/NotFound";
+import Notification from "./pages/Notification";
 
 const queryClient = new QueryClient();
 
@@ -56,6 +56,14 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <Competition />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/dashboard/notifications" 
+            element={
+              <ProtectedRoute>
+                <Notification />
               </ProtectedRoute>
             } 
           />

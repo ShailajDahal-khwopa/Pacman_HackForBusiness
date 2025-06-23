@@ -237,7 +237,7 @@ def credit(request):  # Creates a new credit entry for a customer user.
             business_user=business_user,
             amount=amount
         )
-        return JsonResponse({'status': 'success', 'credit_id': credit_entry.id})
+        return JsonResponse({'status': 'success', 'credit_id': credit_entry.credit_id})
 
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
 
@@ -270,6 +270,34 @@ def search_businesses(request): # Searches for businesses based on product name 
 
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
 
+@csrf_exempt 
+def credit_add(request):  # Creates a new credit entry for a customer user.
+    if request.method == "OPTIONS":
+        return options_response()
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            customer_uuid = data.get('customer_uuid')
+            business_uuid = data.get('business_uuid')
+            amount = data.get('amount')
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
+
+        try:
+            customer_user = CutomerUser.objects.get(uuid=customer_uuid)
+            business_user = BusinessUsers.objects.get(uuid=business_uuid)
+        except (CutomerUser.DoesNotExist, BusinessUsers.DoesNotExist):
+            return JsonResponse({'status': 'error', 'message': 'User not found'}, status=404)
+
+        credit_entry = Credit.objects.create(
+            
+            customer_user=customer_user,
+            business_user=business_user,
+            amount=amount
+        )
+        return JsonResponse({'status': 'success', 'credit_id': credit_entry.credit_id})
+
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)       
 
 @csrf_exempt
 def credit_edit(request):  # Edits an existing credit entry.
@@ -289,7 +317,7 @@ def credit_edit(request):  # Edits an existing credit entry.
             return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
 
         try:
-            credit_entry = Credit.objects.get(id=credit_id)
+            credit_entry = Credit.objects.get(credit_id=credit_id)
         except Credit.DoesNotExist:
             return JsonResponse({'status': 'error', 'message': 'Credit entry not found'}, status=404)
 

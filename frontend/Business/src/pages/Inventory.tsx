@@ -283,6 +283,12 @@ const Inventory = () => {
     const doc = new jsPDF();
     let y = 15;
 
+    // Add business name (uuid) at the top
+    const businessUuid = localStorage.getItem('businessUuid') || "Business";
+    doc.setFontSize(16);
+    doc.text(`Business: ${businessUuid}`, 14, y);
+    y += 10;
+
     doc.setFontSize(18);
     doc.text("Invoice", 14, y);
     y += 10;
@@ -348,7 +354,7 @@ const Inventory = () => {
               className="bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white"
             >
               <ReceiptText className="mr-2 h-4 w-4" />
-              Upload Invoice Image
+              Upload Image For Invoice
             </Button>
             <Button
               onClick={() => setIsAdding(true)}
@@ -389,6 +395,39 @@ const Inventory = () => {
                 </Button>
               </div>
               {invoiceUploading && <div className="mt-2 text-blue-600">Processing invoice...</div>}
+            </div>
+          </Dialog>
+        )}
+
+        {/* Detect Image Upload Dialog */}
+        {showUpload && (
+          <Dialog open={showUpload} onOpenChange={setShowUpload}>
+            <div className="p-6">
+              <h2 className="text-lg font-semibold mb-4">Upload Image for Detection</h2>
+              <input
+                type="file"
+                accept="image/*"
+                ref={fileInputRef}
+                onChange={e => {
+                  if (e.target.files && e.target.files[0]) {
+                    handleDetectImage(e.target.files[0]);
+                  }
+                }}
+                disabled={uploading}
+              />
+              <div className="mt-4 flex gap-2">
+                <Button
+                  onClick={() => {
+                    if (fileInputRef.current) fileInputRef.current.value = "";
+                    setShowUpload(false);
+                  }}
+                  variant="outline"
+                  disabled={uploading}
+                >
+                  Cancel
+                </Button>
+              </div>
+              {uploading && <div className="mt-2 text-blue-600">Detecting items...</div>}
             </div>
           </Dialog>
         )}

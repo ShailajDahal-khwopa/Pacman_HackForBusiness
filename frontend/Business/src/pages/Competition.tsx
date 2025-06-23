@@ -47,7 +47,7 @@ const Competition = () => {
     formData.append('image', selectedFile);
 
     try {
-      const response = await fetch('http://localhost:5000/match', {
+      const response = await fetch('http://localhost:7000/match', {
         method: 'POST',
         body: formData,
       });

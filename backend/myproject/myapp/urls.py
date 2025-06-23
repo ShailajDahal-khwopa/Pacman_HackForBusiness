@@ -13,4 +13,5 @@ urlpatterns  = [
     path('notification/', views.notification, name='notification'),
     path('view_notifications/', views.view_notifications, name='view_notifications'),
     path('credit_customer/', views.credit_customer, name='credit_customer'),
+    path('credit_add/', views.credit_add, name='credit_add'),
 ]

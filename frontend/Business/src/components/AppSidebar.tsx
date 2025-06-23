@@ -1,4 +1,3 @@
-
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -16,7 +15,8 @@ import {
   Package, 
   CreditCard, 
   Trophy,
-  Building2
+  Building2,
+  Bell
 } from "lucide-react";
 
 const menuItems = [
@@ -39,6 +39,11 @@ const menuItems = [
     title: "Competition",
     url: "/dashboard/competition",
     icon: Trophy,
+  },
+  {
+    title: "Notifications",
+    url: "/dashboard/notifications",
+    icon: Bell,
   },
 ];
 

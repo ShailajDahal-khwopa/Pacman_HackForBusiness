@@ -1,8 +1,8 @@
-
 import { useEffect, useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Card } from "@/components/ui/card";
-import { Package, CreditCard, TrendingUp, Users } from 'lucide-react';
+import { Package, CreditCard, TrendingUp, Users, Bell } from 'lucide-react';
+import { useNavigate } from "react-router-dom";
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -10,6 +10,8 @@ const Dashboard = () => {
     totalCredits: 0,
     totalValue: 0,
   });
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     // Fetch dashboard stats
@@ -97,6 +99,21 @@ const Dashboard = () => {
               </div>
             </Card>
           ))}
+          {/* Notification Card */}
+          <Card
+            className="p-6 border-0 shadow-lg bg-white hover:shadow-xl transition-shadow duration-200 cursor-pointer"
+            onClick={() => navigate("/dashboard/notifications")}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Notifications</p>
+                <p className="text-2xl font-bold text-gray-900 mt-2">View</p>
+              </div>
+              <div className="p-3 rounded-full bg-gradient-to-r from-yellow-500 to-yellow-600">
+                <Bell className="h-6 w-6 text-white" />
+              </div>
+            </div>
+          </Card>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -1,21 +1,32 @@
-
 import { useEffect, useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CreditCard, User, Calendar, DollarSign } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Save, X, Plus, Edit2 } from "lucide-react";
 
 interface Credit {
+  id?: number; // Add id for edit
   customer_uuid: string;
   amount: number;
   due_date: string;
+  paid_status?: boolean;
 }
 
 const Credits = () => {
   const [credits, setCredits] = useState<Credit[]>([]);
   const [totalCredits, setTotalCredits] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAdding, setIsAdding] = useState(false);
+  const [newCredit, setNewCredit] = useState<{ customer_uuid: string; amount: number }>({
+    customer_uuid: "",
+    amount: 0,
+  });
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editData, setEditData] = useState<Partial<Credit> | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -104,6 +115,75 @@ const Credits = () => {
     });
   };
 
+  // Add Credit Handler (updated)
+  const handleAddCredit = async () => {
+    try {
+      const businessUuid = localStorage.getItem('businessUuid');
+      const response = await fetch('http://localhost:8000/credit_add/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          business_uuid: businessUuid,
+          customer_uuid: newCredit.customer_uuid,
+          amount: Number(newCredit.amount),
+        }),
+      });
+      const data = await response.json();
+      if (data.status === 'success') {
+        toast({ title: "Success", description: "Credit added." });
+        setIsAdding(false);
+        setNewCredit({ customer_uuid: "", amount: 0 });
+        setIsLoading(true);
+        setTimeout(() => window.location.reload(), 500); // or refetchCredits()
+      } else {
+        toast({ title: "Error", description: data.message, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to add credit", variant: "destructive" });
+    }
+  };
+
+  // Edit Credit Handler
+  const handleEditCredit = (credit: Credit) => {
+    setEditingId(credit.id!);
+    setEditData({ ...credit });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editData || !editingId) return;
+    try {
+      const response = await fetch('http://localhost:8000/credit_edit/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          credit_id: editingId,
+          amount: editData.amount,
+          due_date: editData.due_date,
+          paid_status: editData.paid_status,
+        }),
+      });
+      const data = await response.json();
+      if (data.status === 'success') {
+        toast({ title: "Success", description: "Credit updated." });
+        setEditingId(null);
+        setEditData(null);
+        setIsLoading(true);
+        setTimeout(() => window.location.reload(), 500); // or refetchCredits()
+      } else {
+        toast({ title: "Error", description: data.message, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to update credit", variant: "destructive" });
+    }
+  };
+
+  const handleCancel = () => {
+    setIsAdding(false);
+    setEditingId(null);
+    setEditData(null);
+    setNewCredit({ customer_uuid: "", amount: 0 });
+  };
+
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -167,6 +247,15 @@ const Credits = () => {
         </div>
 
         {/* Credits Table */}
+        <div className="flex justify-end mb-4">
+          <Button
+            onClick={() => setIsAdding(true)}
+            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Credit
+          </Button>
+        </div>
         <Card className="border-0 shadow-lg">
           <div className="p-6">
             <div className="flex items-center gap-2 mb-6">
@@ -185,26 +274,103 @@ const Credits = () => {
                   </tr>
                 </thead>
                 <tbody>
+                  {isAdding && (
+                    <tr className="border-b border-gray-100 bg-blue-50">
+                      <td className="py-3 px-4">
+                        <Input
+                          value={newCredit.customer_uuid}
+                          onChange={e => setNewCredit(prev => ({ ...prev, customer_uuid: e.target.value }))}
+                          placeholder="Customer UUID"
+                          className="border-blue-200"
+                        />
+                      </td>
+                      <td className="py-3 px-4">
+                        <Input
+                          type="number"
+                          value={newCredit.amount}
+                          onChange={e => setNewCredit(prev => ({ ...prev, amount: Number(e.target.value) }))}
+                          placeholder="Amount"
+                          className="border-blue-200"
+                        />
+                      </td>
+                      <td className="py-3 px-4"></td>
+                      <td className="py-3 px-4"></td>
+                      <td className="py-3 px-4">
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={handleAddCredit} className="bg-green-600 hover:bg-green-700">
+                            <Save className="h-4 w-4" />
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={handleCancel}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
                   {credits.map((credit, index) => (
                     <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-4 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                            <User className="h-4 w-4 text-white" />
-                          </div>
+                        {editingId === credit.id ? (
+                          <Input
+                            value={editData?.customer_uuid || ""}
+                            onChange={e => setEditData(prev => prev ? { ...prev, customer_uuid: e.target.value } : null)}
+                            className="border-blue-200"
+                          />
+                        ) : (
                           <span className="font-medium text-gray-900 font-mono text-sm">{credit.customer_uuid.slice(0, 8)}...</span>
-                        </div>
+                        )}
                       </td>
                       <td className="py-4 px-4">
-                        <span className="text-lg font-semibold text-gray-900">₹{credit.amount.toLocaleString()}</span>
+                        {editingId === credit.id ? (
+                          <Input
+                            type="number"
+                            value={editData?.amount || ""}
+                            onChange={e => setEditData(prev => prev ? { ...prev, amount: Number(e.target.value) } : null)}
+                            className="border-blue-200"
+                          />
+                        ) : (
+                          <span className="text-lg font-semibold text-gray-900">₹{credit.amount.toLocaleString()}</span>
+                        )}
                       </td>
                       <td className="py-4 px-4">
-                        <span className="text-gray-600">{formatDate(credit.due_date)}</span>
+                        {editingId === credit.id ? (
+                          <Input
+                            type="date"
+                            value={editData?.due_date?.slice(0, 10) || ""}
+                            onChange={e => setEditData(prev => prev ? { ...prev, due_date: e.target.value } : null)}
+                            className="border-blue-200"
+                          />
+                        ) : (
+                          <span className="text-gray-600">{formatDate(credit.due_date)}</span>
+                        )}
                       </td>
                       <td className="py-4 px-4">
-                        <Badge className={`${getStatusColor(credit.due_date)} capitalize`}>
-                          {getStatusText(credit.due_date)}
-                        </Badge>
+                        {editingId === credit.id ? (
+                          <div className="flex gap-2">
+                            <Button size="sm" onClick={handleSaveEdit} className="bg-green-600 hover:bg-green-700">
+                              <Save className="h-4 w-4" />
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={handleCancel}>
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <Badge className={`${getStatusColor(credit.due_date)} capitalize`}>
+                            {getStatusText(credit.due_date)}
+                          </Badge>
+                        )}
+                      </td>
+                      <td className="py-4 px-4">
+                        {editingId !== credit.id && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEditCredit(credit)}
+                            className="hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </td>
                     </tr>
                   ))}

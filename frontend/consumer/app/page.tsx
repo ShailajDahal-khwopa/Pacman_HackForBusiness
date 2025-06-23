@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import dynamic from "next/dynamic"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -36,7 +36,9 @@ interface LocationItem {
 const API_URL = "http://localhost:8000/search_businesses/"
 
 export default function LocationTracker() {
-  const [userLocation, setUserLocation] = useState<[number, number] | null>(null)
+  // Always use this as the initial location
+  const DEFAULT_LOCATION: [number, number] = [27.619417, 85.537049]
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(DEFAULT_LOCATION)
   const [selectedLocation, setSelectedLocation] = useState<[number, number] | null>(null)
   const [itemName, setItemName] = useState("")
   const [itemRange, setItemRange] = useState("")
@@ -47,9 +49,15 @@ export default function LocationTracker() {
   const [loadingBusinesses, setLoadingBusinesses] = useState<string | null>(null)
   const [notificationLoading, setNotificationLoading] = useState<string | null>(null)
   const [notificationMessage, setNotificationMessage] = useState<string | null>(null)
+  const [credits, setCredits] = useState<any[]>([])
+  const [loadingCredits, setLoadingCredits] = useState(false)
+  const [creditsError, setCreditsError] = useState<string | null>(null)
 
   useEffect(() => {
-    // Get user's current location
+    // Always open to DEFAULT_LOCATION
+    setUserLocation(DEFAULT_LOCATION)
+    // Optionally, you can remove or comment out geolocation code below
+    /*
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -59,14 +67,14 @@ export default function LocationTracker() {
         (error) => {
           console.error("Error getting location:", error)
           setLocationError("Unable to get your location. Using default location.")
-          // Default to San Francisco if location access is denied
-          setUserLocation([37.7749, -122.4194])
+          setUserLocation(DEFAULT_LOCATION)
         },
       )
     } else {
       setLocationError("Geolocation is not supported by this browser.")
-      setUserLocation([37.7749, -122.4194])
+      setUserLocation(DEFAULT_LOCATION)
     }
+    */
   }, [])
 
   const handleMapClick = (lat: number, lng: number) => {
@@ -156,6 +164,29 @@ export default function LocationTracker() {
       setNotificationLoading(null)
     }
   }
+
+  // Fetch credits for default customer 'shailaj'
+  const fetchCredits = useCallback(async () => {
+    setLoadingCredits(true)
+    setCreditsError(null)
+    try {
+      const res = await fetch("http://localhost:8000/credit_customer/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customer_uuid: "shailaj" }),
+      })
+      const data = await res.json()
+      if (data.status === "success") {
+        setCredits(data.credits)
+      } else {
+        setCreditsError(data.message || "Failed to fetch credits")
+      }
+    } catch (e) {
+      setCreditsError("Failed to fetch credits")
+    } finally {
+      setLoadingCredits(false)
+    }
+  }, [])
 
   // Collect all businesses from items
   const allBusinesses = items
@@ -332,6 +363,47 @@ export default function LocationTracker() {
                             Find Businesses
                           </Button>
                         )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Credits Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Credits</CardTitle>
+              <CardDescription>
+                View all credits for customer <b>shailaj</b>
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button size="sm" onClick={fetchCredits} disabled={loadingCredits}>
+                {loadingCredits ? "Loading..." : "View Credits"}
+              </Button>
+              {creditsError && (
+                <div className="text-xs text-red-600 mt-2">{creditsError}</div>
+              )}
+              {credits.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  {credits.map((credit, idx) => (
+                    <div key={idx} className="border rounded p-2 text-xs flex flex-col gap-1">
+                      <div>
+                        <b>Business:</b> {credit.business_uuid}
+                      </div>
+                      <div>
+                        <b>Amount:</b> {credit.amount}
+                      </div>
+                      <div>
+                        <b>Due Date:</b> {credit.due_date}
+                      </div>
+                      <div>
+                        <b>Status:</b>{" "}
+                        <span className={credit.paid_status ? "text-green-600" : "text-yellow-600"}>
+                          {credit.paid_status ? "Paid" : "Unpaid"}
+                        </span>
                       </div>
                     </div>
                   ))}

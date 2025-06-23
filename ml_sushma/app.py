@@ -7,14 +7,16 @@ import requests
 import torch
 from bs4 import BeautifulSoup
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 from PIL import Image
 from torchvision import models, transforms
-from flask_cors import CORS
-#ensure cors
+
+# ensure cors
 
 
 app = Flask(__name__)
 CORS(app)
+
 
 # -------- Scrape khadyanna.com --------
 def scrape_khadyanna(search_term):
@@ -249,4 +251,4 @@ def match_product():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, port=7000)
