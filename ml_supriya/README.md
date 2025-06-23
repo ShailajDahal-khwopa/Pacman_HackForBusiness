@@ -1,7 +1,7 @@
 # 🧾 Grocery Invoice Generator & Object Detection API
 
 This project provides Flask APIs for:
-- Detecting grocery items in images using YOLOv8.
+- Detecting grocery items in images using YOLOv11.
 - Generating a detailed invoice (with pricing) using Google Gemini AI or a fallback manual method.
 - Simple object detection/counting for grocery items.
 
@@ -29,7 +29,7 @@ This project provides Flask APIs for:
 
 This module enables you to:
 - Upload an image of a grocery cart or shelf.
-- Detect and count known grocery items using a custom-trained YOLOv8 model.
+- Detect and count known grocery items using a custom-trained YOLOv11 model.
 - Generate a detailed invoice with itemized pricing using Google Gemini AI (with fallback to manual calculation).
 - Use a simple detection/counting API for quick item recognition.
 
@@ -37,7 +37,7 @@ This module enables you to:
 
 ## Features
 
-- 🛒 Grocery item detection using YOLOv8
+- 🛒 Grocery item detection using YOLOv11
 - 🧾 Invoice generation with pricing (Nepalese Rupees)
 - 🤖 Gemini AI integration for smart invoice formatting
 - 🔢 Fallback manual invoice calculation
@@ -51,7 +51,7 @@ This module enables you to:
 - Python 3.x
 - Flask
 - Flask-CORS
-- Ultralytics YOLOv8
+- Ultralytics YOLOv10
 - Pillow (PIL)
 - OpenCV (for detection.py)
 - Google Generative AI (Gemini)
@@ -78,8 +78,8 @@ This module enables you to:
    pip install flask flask-cors ultralytics pillow opencv-python numpy google-generativeai
    ```
 
-4. **Download your YOLOv8 model:**
-   - Place your `best.pt` YOLOv8 model file in this directory.
+4. **Download your YOLOv model:**
+   - Place your `best.pt` YOLOv10odel file in this directory.
 
 5. **Set up Google Gemini API key:**
    - Replace the placeholder API key in `invoice.py` with your own Gemini API key.
@@ -165,7 +165,7 @@ curl -X POST -F "image=@/path/to/image.jpg" http://127.0.0.1:5000/detect
 ## How It Works
 
 1. **Image Upload:** User uploads a grocery image.
-2. **YOLOv8 Detection:** The model detects and classifies known grocery items.
+2. **YOLOv11 Detection:** The model detects and classifies known grocery items.
 3. **Counting:** Items are counted and mapped to a price list.
 4. **Invoice Generation:** Gemini AI formats the invoice (with fallback to manual calculation).
 5. **Response:** The API returns a detailed invoice or a simple item count.
@@ -174,7 +174,7 @@ curl -X POST -F "image=@/path/to/image.jpg" http://127.0.0.1:5000/detect
 
 ## Troubleshooting
 
-- **YOLO Model:** Ensure `best.pt` is present and compatible with Ultralytics YOLOv8.
+- **YOLO Model:** Ensure `best.pt` is present and compatible with Ultralytics YOLOv11.
 - **Gemini API:** Use a valid API key and ensure internet access.
 - **Dependencies:** Install all required Python packages as listed above.
 - **Image Format:** Use clear, well-lit images for best results.
