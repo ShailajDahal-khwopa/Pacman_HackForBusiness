@@ -1,4 +1,4 @@
-# 🟢 Pacman_HackForBusiness: Smart B2B/B2C Platform
+# 🟢 Pacman_HackForBusiness: Srockwise
 
 <img src="logo.png" alt="Pacman_HackForBusiness Logo" align="right" width="350">
 
