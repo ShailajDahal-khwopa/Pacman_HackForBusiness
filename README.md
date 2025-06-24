@@ -1,4 +1,4 @@
-# 🟢 Pacman_HackForBusiness: Srockwise
+# 🟢 Pacman_HackForBusiness: Stockwise
 
 <img src="logo.png" alt="Pacman_HackForBusiness Logo" align="right" width="350">
 
