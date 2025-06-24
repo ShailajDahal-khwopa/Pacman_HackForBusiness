@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import L from "leaflet"
 import "leaflet/dist/leaflet.css"
 
@@ -37,13 +37,14 @@ interface MapComponentProps {
 }
 
 export default function MapComponent({
-  center,
+  center: initialCenter,
   selectedLocation,
   previewRange,
   items,
   businesses = [],
   onMapClick,
 }: MapComponentProps) {
+  const [center, setCenter] = useState<[number, number] | null>(null)
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<L.Map | null>(null)
   const markersRef = useRef<L.Marker[]>([])
@@ -53,7 +54,27 @@ export default function MapComponent({
   const previewCircleRef = useRef<L.Circle | null>(null)
 
   useEffect(() => {
-    if (!mapRef.current) return
+    // Get user's current location on mount
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setCenter([
+            position.coords.latitude,
+            position.coords.longitude,
+          ])
+        },
+        () => {
+          // If denied or failed, fallback to initialCenter
+          setCenter(initialCenter)
+        }
+      )
+    } else {
+      setCenter(initialCenter)
+    }
+  }, [initialCenter])
+
+  useEffect(() => {
+    if (!mapRef.current || !center) return
 
     // Initialize map
     const map = L.map(mapRef.current).setView(center, 16)
